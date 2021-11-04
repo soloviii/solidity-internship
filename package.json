@@ -7,8 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "private-network": "node ./scripts/private-network.js"
+    "compile": "truffle compile",
+    "test": "truffle test",
+    "private-network": "npx truffle run private-network --private-networkjs ./.private-network.js --network private-network"
   },
   "author": "",
   "license": "ISC",
@@ -16,7 +17,15 @@
     "openzeppelin-solidity": "^4.3.2"
   },
   "dependencies": {
+    "@openzeppelin/test-helpers": "^0.5.15",
     "@truffle/hdwallet-provider": "^1.5.1",
-    "truffle-assertions": "^0.9.2"
+    "bn.js": "^5.2.0",
+    "chai": "^4.3.4",
+    "chai-as-promised": "^7.1.1",
+    "chai-bn": "^0.3.0",
+    "truffle-assertions": "^0.9.2",
+    "truffle-plugin-verify": "^0.5.16",
+    "truffle-verify": "^1.0.8",
+    "web3-utils": "^1.6.0"
   }
 }
