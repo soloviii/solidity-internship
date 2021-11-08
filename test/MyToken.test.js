@@ -1,7 +1,8 @@
 const {
     BN,
     constants,
-    expectRevert
+    expectRevert,
+    assertRevert
 } = require('@openzeppelin/test-helpers');
 require('chai')
     .use(require('chai-as-promised'))
@@ -13,6 +14,16 @@ contract("MyToken", ([owner, user1, user2]) => {
 
     beforeEach(async () => {
         contractInstance = await MyToken.new({ from: owner });
+    });
+
+    describe("receive", async() => {
+    it("check total supply after receive", async () => {
+        const receiveValue = web3.utils.toWei(web3.utils.toBN(10),"mwei");
+        await contractInstance.sendTransaction({from : owner, value : receiveValue});
+        const result = await contractInstance.totalSupply();
+
+        result.should.be.bignumber.equal('1000100000000');
+    });
     });
 
     describe("constructor", async() => {

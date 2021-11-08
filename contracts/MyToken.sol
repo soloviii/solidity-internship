@@ -42,6 +42,7 @@ contract MyToken is ERC20Pausable,Ownable {
     }
 
     receive() external payable{
-        //Do something
+        require(msg.value > 0, 'ERC20: amount is not valid');
+        _mint(msg.sender, (msg.value*10));
     }
 }
