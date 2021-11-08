@@ -6,7 +6,9 @@ import "openzeppelin-solidity/contracts/token/ERC20/extensions/ERC20Pausable.sol
 
 contract MyToken is ERC20Pausable,Ownable {
 
-    constructor() ERC20("MyToken", "MK") {
+    constructor() 
+    ERC20("MyToken", "MK") 
+    {
         uint256 balance =  1_000_000 * 10 ** decimals();
         _mint(msg.sender,balance);  
     } 
@@ -15,20 +17,31 @@ contract MyToken is ERC20Pausable,Ownable {
         return 6;
     }
 
-    function pause() public onlyOwner {
+    function pause() 
+    public 
+    onlyOwner {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() 
+    public 
+    onlyOwner {
         _unpause();
     }
 
-    function burn(address _from, uint256 _amount) public{
-        _burn(_from, _amount);
+    function burn(uint256 _amount) 
+    public{
+        _burn(msg.sender,_amount);
     }
 
-    function mint(address _to,uint _amount) public onlyOwner{
+    function mint(address _to,uint256 _amount) 
+    public 
+    onlyOwner{
         require(_amount > 0, 'ERC20: amount is not valid');
         _mint(_to, _amount);  
+    }
+
+    receive() external payable{
+        //Do something
     }
 }
