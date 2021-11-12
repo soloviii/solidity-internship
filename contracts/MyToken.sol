@@ -40,7 +40,7 @@ contract MyToken is ERC20Pausable, Ownable, ReentrancyGuard {
         _transfer(address(this), msg.sender, (msg.value * rate) / 1e18);
     }
 
-    function transferToEther() public nonReentrant {
+    function transferToEther() public nonReentrant() {
         //1_000_000
 
         uint256 amount = balanceOf(msg.sender);
