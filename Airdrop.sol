@@ -1,63 +1,59 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "./Token.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Airdrop is Ownable{
 
-    Token public token;
+    IERC20 public token;
 
-    constructor(address payable _token) {
-        token = Token(_token);
+    constructor(address _token) {
+        token = IERC20(_token);
     }
 
-    function depositEther() external payable onlyOwner {
-
-    }
+    function depositEther() external payable onlyOwner {}
 
     function dropEther(
         address payable[] calldata _recipients,
         uint256 _amount
     ) external payable onlyOwner {
         for(uint256 i; i < _recipients.length; i++){
-           _recipients[i].transfer(_amount);
+           (bool sent,) =  _recipients[i].call{value: _amount}("");
+           require(sent, "Failed to send Ether");
         }
     }
 
-    function updateTokenAddress(address payable _token) public onlyOwner {
-        token = Token(_token);
+    function updateTokenAddress(address _token) public onlyOwner {
+        token = IERC20(_token);
     }
 
     function withdrawEther() external payable onlyOwner{
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function getTokenAddress() public view returns(address){
+    function getTokenAddress() external view returns(address){
         return address(token);
     }
 
-    function depositTokens(address payable _token) public payable onlyOwner {
-        require(msg.value > 0, "ERC20: amount is not valid");
-        
-        token = Token(_token);
-
-        token.transferFrom(msg.sender,address(this), msg.value);
+    function depositTokens(uint256 _amount) public onlyOwner {        
+        (bool sent) = token.transferFrom(msg.sender,address(this), _amount);
+        require(sent, "Failed to deposit tokens");
     }
 
     function dropTokens(
-        address payable[] calldata _recipients,
+        address[] calldata _recipients,
         uint256 _amount
-    ) external payable onlyOwner {
+    ) external onlyOwner {
+        require((token.balanceOf(address(this)) >= _recipients.length * _amount), "Not enough tokens on the contract");
         for(uint256 i; i < _recipients.length; i++){
-            token.transfer(_recipients[i], _amount);
+            (bool sent) = token.transfer(_recipients[i], _amount);
+            require(sent, "Failed to drop tokens");
         }
     }
 
-    function withdrawTokens(address payable _token) external payable onlyOwner{
-        token = Token(_token);
-
-        token.transfer(msg.sender, token.balanceOf(address(this)));
+    function withdrawTokens() external onlyOwner{
+        (bool sent) = token.transfer(msg.sender, token.balanceOf(address(this)));
+        require(sent, "Failed to withdraw tokens");
     }
 }
