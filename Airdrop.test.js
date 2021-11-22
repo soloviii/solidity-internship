@@ -7,39 +7,62 @@ const {
     balance,
     ether
 } = require('@openzeppelin/test-helpers');
+const { expect } = require('chai');
 require('chai')
     .use(require('chai-as-promised'))
+    .use(require('chai-bignumber')())
     .use(require('chai-bn')(BN))
     .should();
 
 const Token = artifacts.require("Token");
-const Airdrop = artifacts.require("Airdrop");
+const AirDrop = artifacts.require("AirDrop");
 
-contract("Airdrop", ([owner, user1, user2, user3]) => {
+contract("AirDrop", ([owner, user1, user2, user3]) => {
 
     beforeEach(async () => {
-        tokenInstance = await Token.new({ from: owner });
-        airdropInstance = await Airdrop.new(tokenInstance.address, { from: owner });
+        tokenInstance = await Token.new();
+        airdropInstance = await AirDrop.new(tokenInstance.address);
     });
 
-    it("Should deposit ether to the contract", async () => {
+    describe("deposit Ether", async () => {
+        it("Should deposit ether to the contract", async () => {
 
-        await airdropInstance.depositEther({ from: owner, value: ether('2') });
+            let BeforeBalanceAirdrop = await balance.current(airdropInstance.address);
 
-        let etherBalanceAirdrop = await balance.current(airdropInstance.address);
+            await airdropInstance.depositEther({ from: owner, value: ether('2') });
 
-        etherBalanceAirdrop.should.be.bignumber.equal(ether('2'));
+            let newBalanceAirdrop = await balance.current(airdropInstance.address);
+
+            expect(newBalanceAirdrop).to.be.bignumber.equal(BeforeBalanceAirdrop.add(ether('2')));
+        });
+
+        it("Should be fail if caller not owner", async () => {
+            await expectRevert(
+                airdropInstance.depositEther({ from: user1, value: ether('2') }),
+                "Ownable: caller is not the owner"
+            );
+        });
     });
 
-    it("Should update token for airdrop", async () => {
+    describe("update token address", async () => {
+        it("Should update token for airdrop", async () => {
 
-        let newToken = await Token.new({ from: owner });
-        await airdropInstance.updateTokenAddress(newToken.address);
+            let newToken = await Token.new({ from: owner });
+            await airdropInstance.updateTokenAddress(newToken.address);
 
-        let actualTokenAddress = await airdropInstance.getTokenAddress();
+            let actualTokenAddress = await airdropInstance.getTokenAddress();
 
-        actualTokenAddress.should.be.equal(newToken.address);
+            actualTokenAddress.should.be.equal(newToken.address);
+        });
+        it("Should be fail if caller not owner", async () => {
+            let newToken = await Token.new({ from: owner });
+            await expectRevert(
+                airdropInstance.updateTokenAddress(newToken.address, { from: user1 }),
+                "Ownable: caller is not the owner"
+            );
+        });
     });
+
 
     describe("drop ether", async () => {
 
@@ -64,6 +87,27 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
             await expectRevert(
                 airdropInstance.dropEther([user1, user2], ether('1'), { from: owner }),
                 "Failed to send Ether"
+            );
+        });
+
+        it("Should be fail if caller not owner", async () => {
+            await expectRevert(
+                airdropInstance.dropEther([user1, user2], ether('1'), { from: user1 }),
+                "Ownable: caller is not the owner"
+            );
+        });
+
+        it("Should be fail if amount Is zero", async () => {
+            await expectRevert(
+                airdropInstance.dropEther([user1, user2], ether('0'), { from: owner }),
+                "Amount is zero"
+            );
+        });
+
+        it("Should be fail if array is empty", async () => {
+            await expectRevert(
+                airdropInstance.dropEther([], ether('1'), { from: owner }),
+                "Array is empty"
             );
         });
     });
