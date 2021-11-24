@@ -1,0 +1,21 @@
+{
+    "scripts": {
+        "compile": "truffle compile",
+        "test": "truffle test",
+        "private-network": "ganache-cli"
+    },
+    "dependencies": {
+        "@openzeppelin/contracts": "^4.3.3",
+        "@openzeppelin/test-helpers": "^0.5.15",
+        "@truffle/hdwallet-provider": "^1.7.0",
+        "chai": "^4.3.4",
+        "chai-as-promised": "^7.1.1",
+        "chai-bn": "^0.3.0",
+        "run-verify": "^1.2.6",
+        "solidity-coverage": "^0.7.17",
+        "truffle-plugin-verify": "^0.5.18"
+    },
+    "devDependencies": {
+        "chai-bignumber": "^3.0.0"
+    }
+}
