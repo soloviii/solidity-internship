@@ -18,7 +18,7 @@ require('chai')
 const Forwarder = artifacts.require("Forwarder");
 let snapshotA;
 
-contract("AirDrop", ([owner, user1, user2]) => {
+contract("Forwarder", ([owner, user1, user2]) => {
 
     before(async() => {
         forwarderInstance = await Forwarder.new();
@@ -33,23 +33,32 @@ contract("AirDrop", ([owner, user1, user2]) => {
         describe("forward", async() => {
             it("Should be fail if address destination is zero", async() => {
                 await expectRevert(
-                    forwarderInstance.forward("Information", constants.ZERO_ADDRESS, { from: user1, value: ether('2') }),
+                    forwarderInstance.forward(constants.ZERO_ADDRESS, "Information", { from: user1, value: ether('2') }),
                     "forward to the zero address",
                 );
             });
+            it("Should check correct transfer amount from user who transfer", async() => {
+                let beforeBalanceUser1 = await balance.current(user1);
+                let transaction = await forwarderInstance.forward(user2, "Information", { from: user1, value: ether('2') });
+                const tx = await web3.eth.getTransaction(transaction.tx);
+                const gasCost = new BN(tx.gasPrice).mul(new BN(transaction.receipt.gasUsed));
+                let newBalanceUser1 = await balance.current(user1);
+                expect(newBalanceUser1).to.be.bignumber.equal(beforeBalanceUser1.sub(gasCost).sub(ether('2')));
+            });
             it("Should deposit and forward ether to the destination address", async() => {
-                let beforeBalanceUser1 = await balance.current(user2);
-                await forwarderInstance.forward("Information", user2, { from: user1, value: ether('2') });
-                let newBalanceUser1 = await balance.current(user2);
-                expect(newBalanceUser1).to.be.bignumber.equal(beforeBalanceUser1.add(ether('2')));
+                let beforeBalanceUser2 = await balance.current(user2);
+                await forwarderInstance.forward(user2, "Information", { from: user1, value: ether('2') });
+                let newBalanceUser2 = await balance.current(user2);
+                expect(newBalanceUser2).to.be.bignumber.equal(beforeBalanceUser2.add(ether('2')));
             });
         });
         describe("events", async() => {
             describe("LogForwarded", async() => {
                 it("emits a LogForwarded event on succesfull function forward", async() => {
-                    const receipt = await forwarderInstance.forward("Information", user2, { from: user1, value: ether('2') });
+                    const receipt = await forwarderInstance.forward(user2, "Information", { from: user1, value: ether('2') });
                     expectEvent(receipt, 'LogForwarded', {
-                        sender: user1,
+                        from: user1,
+                        to: user2,
                         amount: ether('2'),
                         data: "Information"
                     });
