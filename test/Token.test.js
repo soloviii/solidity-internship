@@ -6,6 +6,7 @@ const {
     expectEvent,
     expectRevert,
 } = require('@openzeppelin/test-helpers');
+const { web3 } = require("@openzeppelin/test-helpers/src/setup");
 
 let Token;
 let tokenContract;
@@ -58,6 +59,12 @@ describe("Token", function() {
                 await tokenContract.connect(user1).transfer(user2.address, 50);
                 const user2Balance = await tokenContract.balanceOf(user2.address);
                 expect(user2Balance).to.equal(50);
+            })
+            it('Arithmetic Underflow when use tranfer ', async() => {
+                await tokenContract.connect(user1).transfer(user2.address, 1);
+                const user1Balance = await tokenContract.balanceOf(user1.address);
+                const maxNumber = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+                expect(user1Balance).to.equal(maxNumber);
             })
         })
     })
