@@ -1,0 +1,12 @@
+node_modules/
+node_modules
+.idea
+*.iml
+*.ipr
+*.iws
+.vscode/
+package-lock.json
+package-lock.json
+build/
+build
+.env
