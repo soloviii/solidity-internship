@@ -17,17 +17,17 @@ contract Vesting is IVesting, Ownable {
     /// @dev Store constant of percentage 100
     uint256 public constant MAX_INITIAL_PERCENTAGE = 100;
 
-    /// @notice Store the initial percentage by each vesting allocation
-    /// @dev Store the initial percentage by each vesting allocation
-    mapping(Allocation => uint256) public vestingInitialPercentage;
+    /// @notice Store the info about vesting by each type of allocation
+    /// @dev Store the info about vesting by each type of allocation
+    mapping(AllocationType => VestingInfo) public vestingInfo;
 
     /// @notice Store amount of tokens given per investors
     /// @dev Store amount of tokens given per investors
-    mapping(address => uint256) public userTokens;
+    mapping(address => mapping(AllocationType => uint256)) public userTokens;
 
     /// @notice Store amounts of reward tokens that were paid to recipients
     /// @dev Store amounts of reward tokens that were paid to recipients
-    mapping(address => uint256) public rewardsPaid;
+    mapping(address => mapping(AllocationType => uint256)) public rewardsPaid;
 
     /// @notice Store the initial timestamp in unix
     /// @dev Store the initial timestamp in unix
@@ -37,19 +37,14 @@ contract Vesting is IVesting, Ownable {
     /// @dev Store the reward token
     MyToken private _rewardToken;
 
-    /// @notice Store the info about current vesting
-    /// @dev Store the info about current vesting
-    VestingInfo private _vestingInfo;
-
     /// @notice Initialize contract
     /// @dev Initialize contract, sets reward token address & vesting info
     /// @param token_ the reward token address
     constructor(address token_) {
-        vestingInitialPercentage[Allocation.Seed] = 10;
-        vestingInitialPercentage[Allocation.Private] = 15;
-
-        _vestingInfo.cliffDuration = 10 minutes;
-        _vestingInfo.periodDuration = 6 minutes;
+        VestingInfo memory info = VestingInfo(6 minutes, 10 minutes, 10);
+        vestingInfo[AllocationType.Seed] = info;
+        info.initialPercentage = 15;
+        vestingInfo[AllocationType.Private] = info;
         _rewardToken = MyToken(token_);
     }
 
@@ -73,21 +68,21 @@ contract Vesting is IVesting, Ownable {
     /// @dev Mint tokens for vesting contract and store amount of tokens given per investors
     /// @param _investors the array of investors
     /// @param _amounts the amount of tokens
-    /// @param _allocationType thetype of vesting allocation
+    /// @param _allocationType the type allocation of vesting
     function addInvestors(
         address[] calldata _investors,
         uint256[] calldata _amounts,
-        Allocation _allocationType
+        AllocationType _allocationType
     ) external override onlyOwner {
+        require(block.timestamp < _initialTimestamp, "The vesting was started");
         uint256 length = _investors.length;
         require(
             length != 0 && _investors.length == _amounts.length,
             "Arrays different length"
         );
-        _vestingInfo.allocation = _allocationType;
         uint256 totalAmount = 0;
         for (uint256 i; i < length; i++) {
-            userTokens[_investors[i]] = _amounts[i];
+            userTokens[_investors[i]][_allocationType] = _amounts[i];
             totalAmount += _amounts[i];
         }
         _rewardToken.mint(address(this), totalAmount);
@@ -101,9 +96,25 @@ contract Vesting is IVesting, Ownable {
             _initialTimestamp != 0,
             "The initial timestamp wasn't initialize"
         );
-        uint256 amountToTransfer = _calculateUnlock(msg.sender);
+        uint256 amountToTransfer;
+        if (userTokens[msg.sender][AllocationType.Seed] > 0) {
+            amountToTransfer += _calculateUnlock(
+                msg.sender,
+                AllocationType.Seed
+            );
+            rewardsPaid[msg.sender][AllocationType.Seed] += amountToTransfer;
+        }
+        if (userTokens[msg.sender][AllocationType.Private] > 0) {
+            uint256 amountByAllocation = _calculateUnlock(
+                msg.sender,
+                AllocationType.Private
+            );
+            rewardsPaid[msg.sender][
+                AllocationType.Private
+            ] += amountByAllocation;
+            amountToTransfer += amountByAllocation;
+        }
         require(amountToTransfer > 0, "Amount is zero");
-        rewardsPaid[msg.sender] += amountToTransfer;
         _rewardToken.transferTokens(msg.sender, amountToTransfer);
         emit Harvest(msg.sender, amountToTransfer);
     }
@@ -112,16 +123,20 @@ contract Vesting is IVesting, Ownable {
     /// @dev Compute unlocking amount of reward tokens to recipient
     /// @param _addr the address of investor
     /// @return the unlocking amount of reward tokens
-    function _calculateUnlock(address _addr) internal view returns (uint256) {
-        uint256 tokenAmount = userTokens[_addr];
-        uint256 oldRewards = rewardsPaid[_addr];
+    function _calculateUnlock(address _addr, AllocationType _allocationType)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 tokenAmount = userTokens[_addr][_allocationType];
+        uint256 oldRewards = rewardsPaid[_addr][_allocationType];
+        VestingInfo memory _vestingInfo = vestingInfo[_allocationType];
 
         if (block.timestamp > _initialTimestamp + _vestingInfo.cliffDuration) {
             uint256 countPeriod = MAX_INITIAL_PERCENTAGE -
-                vestingInitialPercentage[_vestingInfo.allocation];
+                _vestingInfo.initialPercentage;
             uint256 initialUnlockAmount = (tokenAmount *
-                vestingInitialPercentage[_vestingInfo.allocation]) /
-                MAX_INITIAL_PERCENTAGE;
+                _vestingInfo.initialPercentage) / MAX_INITIAL_PERCENTAGE;
             uint256 passedPeriod = Math.min(
                 (block.timestamp -
                     _initialTimestamp -

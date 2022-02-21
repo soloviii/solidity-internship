@@ -86,11 +86,17 @@ describe('Vesting', async () => {
                 ).to.be.revertedWith("Ownable: caller is not the owner")
             })
             it('should fail if arrays has different length', async () => {
+                let blo = await ethers.provider.getBlockNumber()
+                let now = (await ethers.provider.getBlock(blo)).timestamp
+                await vesting.setInitialTimestamp(now + 10)
                 await expect(vesting.addInvestors([a(investor1), a(investor2)],
                     [toETH("1")], 0)
                 ).to.be.revertedWith("Arrays different length")
             })
             it('should mint tokens for vesting equal to the sum of tokens amount successfully', async () => {
+                let blo = await ethers.provider.getBlockNumber()
+                let now = (await ethers.provider.getBlock(blo)).timestamp
+                await vesting.setInitialTimestamp(now + 10)
                 let beforeBalanceVesting = await rewardToken.balanceOf(vesting.address);
                 await expect(vesting.addInvestors([a(investor1), a(investor2)],
                     [toETH("1"), toETH("2")], 0)
@@ -112,10 +118,10 @@ describe('Vesting', async () => {
                 await expect(vesting.connect(investor1).withdrawTokens()
                 ).to.be.revertedWith("Amount is zero")
             })
-            it('should withdraw tokens succesfully(allocation - Seed)', async () => {
+            it('should withdraw tokens succesfully(AllocationType - Seed)', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
-                await vesting.setInitialTimestamp(now);
+                await vesting.setInitialTimestamp(now + 10);
 
                 await expect(vesting.addInvestors([a(investor1), a(investor2)],
                     [toETH("1"), toETH("2")], 0)
@@ -140,10 +146,10 @@ describe('Vesting', async () => {
                 expect(await rewardToken.balanceOf(investor1.address)).to.be.equal("1000000000000000000");
                 expect(await rewardToken.balanceOf(investor2.address)).to.be.equal("2000000000000000000");
             })
-            it('should withdraw tokens succesfully(allocation - Private)', async () => {
+            it('should withdraw tokens succesfully(AllocationType - Private)', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
-                await vesting.setInitialTimestamp(now);
+                await vesting.setInitialTimestamp(now + 10);
 
                 await expect(vesting.addInvestors([a(investor1), a(investor2)],
                     [toETH("1"), toETH("2")], 1)
@@ -169,6 +175,32 @@ describe('Vesting', async () => {
                     .to.emit(vesting, 'Harvest').withArgs(investor2.address, '1680000000000000000')
                 expect(await rewardToken.balanceOf(investor1.address)).to.be.equal("1000000000000000000");
                 expect(await rewardToken.balanceOf(investor2.address)).to.be.equal("2000000000000000000");
+            })
+            it('should withdraw tokens succesfully(AllocationType - Seed & Private)', async () => {
+                let blo = await ethers.provider.getBlockNumber()
+                let now = (await ethers.provider.getBlock(blo)).timestamp
+                await vesting.setInitialTimestamp(now + 30);
+
+                await expect(vesting.addInvestors([a(investor1)],
+                    [toETH("1")], 0)
+                ).to.emit(vesting, 'AddInvestors').withArgs([investor1.address],
+                    [toETH("1")], 0)
+                await expect(vesting.addInvestors([a(investor1)],
+                    [toETH("1")], 1)
+                ).to.emit(vesting, 'AddInvestors').withArgs([investor1.address],
+                    [toETH("1")], 1)
+
+                let beforeBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
+                await setCurrentTime(now + 1031); // after cliff period
+                await expect(vesting.connect(investor1).withdrawTokens())
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '270000000000000000')
+                let afterBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
+                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("270000000000000000"));
+
+                await setCurrentTime(now + 1031 + 32400); // after 100% vesting
+                await expect(vesting.connect(investor1).withdrawTokens())
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '1730000000000000000')
+                expect(await rewardToken.balanceOf(investor1.address)).to.be.equal("2000000000000000000");
             })
         })
     })
