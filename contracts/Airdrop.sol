@@ -64,7 +64,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
         emit DepositEther(msg.sender, msg.value);
     }
 
-    /// #if_succeeds {:msg "nonce must be non-working"} _nonces[msg.sender][_nonce] == true;
+    /// #if_succeeds {:msg "nonce should be broken"} old(_nonces[msg.sender][_nonce]) == true;
     /// @notice Sets eligible token amounts to recipients
     /// @dev Sets eligible token amounts to recipients by owner
     /// @param _recipients the addresses of recipients
@@ -103,7 +103,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
         }
     }
 
-    /// #if_succeeds {:msg "nonce must be non-working"} _nonces[msg.sender][_nonce] == true;
+    /// #if_succeeds {:msg "nonce should be broken"} old(_nonces[msg.sender][_nonce]) == true;
     /// @notice Sets eligible ether amount to recipients
     /// @dev Sets eligible ether amount to recipients by owner
     /// @param _recipients the addresses of recipients

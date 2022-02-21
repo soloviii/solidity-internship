@@ -1,9 +1,8 @@
 const Airdrop = artifacts.require("Airdrop");
 const MyToken = artifacts.require("MyToken");
-const { constants, expectRevert, balance, send, ether, BN, time, snapshot } = require('@openzeppelin/test-helpers');
+const { constants, expectRevert, balance, send, ether, BN, time, expectEvent, snapshot } = require('@openzeppelin/test-helpers');
 
 const { expect } = require('chai');
-const expectEvent = require('@openzeppelin/test-helpers/src/expectEvent');
 const EIP712 = require("./utils/eip712.js");
 
 contract("Airdrop", ([owner, user1, user2, user3]) => {
@@ -74,6 +73,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
             });
             it('Should transfer tokens from owner to airdrop contract successfully', async() => {
                 let beforeBalanceAirdrop = await myToken.balanceOf(airdrop.address);
+                let beforeBalanceOwner = await myToken.balanceOf(owner);
                 await myToken.approve(airdrop.address, ether('1'));
                 let tx = await airdrop.depositTokens(ether('1'));
                 expectEvent(
@@ -81,7 +81,9 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
                     "DepositTokens", { sender: owner, amount: ether('1') }
                 );
                 let afterBalanceAirdrop = await myToken.balanceOf(airdrop.address);
+                let afterBalanceOwner = await myToken.balanceOf(owner);
                 expect(afterBalanceAirdrop).to.be.bignumber.equal(beforeBalanceAirdrop.add(ether('1')));
+                expect(afterBalanceOwner).to.be.bignumber.equal(beforeBalanceOwner.sub(ether('1')));
             });
         });
         describe("depositEther", async() => {
@@ -90,20 +92,26 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
             });
             it('Should transfer coins from owner to airdrop contract successfully', async() => {
                 let beforeBalanceAirdrop = await balance.current(airdrop.address);
-                let tx = await airdrop.depositEther({ from: owner, value: ether('2') });
+                let beforeBalanceOwner = await balance.current(owner);
+                let transaction = await airdrop.depositEther({ from: owner, value: ether('2') });
                 expectEvent(
-                    tx,
+                    transaction,
                     "DepositEther", { sender: owner, amount: ether('2') }
                 );
+                const tx = await web3.eth.getTransaction(transaction.tx);
+                const gasCost = new BN(tx.gasPrice).mul(new BN(transaction.receipt.gasUsed));
+
                 let afterBalanceAirdrop = await balance.current(airdrop.address);
+                let afterBalanceOwner = await balance.current(owner);
                 expect(afterBalanceAirdrop).to.be.bignumber.equal(beforeBalanceAirdrop.add(ether('2')));
+                expect(afterBalanceOwner).to.be.bignumber.equal(beforeBalanceOwner.sub(gasCost).sub(ether('2')));
             });
         });
         describe("updateTokenAddress", async() => {
             it('Should fail if sender is not owner', async() => {
                 await expectRevert(airdrop.updateTokenAddress(myToken.address, { from: user1 }), "Ownable: caller is not the owner");
             });
-            it('Should fail if pass zero address Airdrop SC', async() => {
+            it('Should fail if pass zero address Token SC', async() => {
                 await expectRevert(airdrop.updateTokenAddress(constants.ZERO_ADDRESS), "ERROR_INVALID_ADDRESS");
             });
             it('Should update token address successfully', async() => {
