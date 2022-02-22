@@ -3,6 +3,7 @@ pragma solidity 0.8.10;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IVesting.sol";
 import "./MyToken.sol";
 
@@ -11,11 +12,20 @@ import "./MyToken.sol";
 /// @notice This Smart Contract provides the vesting of tokens that will be unlocking until a certain date
 /// @dev This Smart Contract provides the vesting of tokens that will be unlocking until a certain date
 contract Vesting is IVesting, Ownable {
+    using SafeERC20 for MyToken;
     using Math for uint256;
 
     /// @notice Store constant of percentage 100
     /// @dev Store constant of percentage 100
     uint256 public constant MAX_INITIAL_PERCENTAGE = 100;
+
+    /// @notice Store the initial timestamp in unix
+    /// @dev Store the initial timestamp in unix
+    uint256 public initialTimestamp;
+
+    /// @notice Store the reward token
+    /// @dev Store the reward token
+    MyToken public rewardToken;
 
     /// @notice Store the info about vesting by each type of allocation
     /// @dev Store the info about vesting by each type of allocation
@@ -29,23 +39,16 @@ contract Vesting is IVesting, Ownable {
     /// @dev Store amounts of reward tokens that were paid to recipients
     mapping(address => mapping(AllocationType => uint256)) public rewardsPaid;
 
-    /// @notice Store the initial timestamp in unix
-    /// @dev Store the initial timestamp in unix
-    uint256 private _initialTimestamp;
-
-    /// @notice Store the reward token
-    /// @dev Store the reward token
-    MyToken private _rewardToken;
-
     /// @notice Initialize contract
     /// @dev Initialize contract, sets reward token address & vesting info
     /// @param token_ the reward token address
     constructor(address token_) {
+        require(token_ != address(0), "Incorrect token address");
         VestingInfo memory info = VestingInfo(6 minutes, 10 minutes, 10);
         vestingInfo[AllocationType.Seed] = info;
         info.initialPercentage = 15;
         vestingInfo[AllocationType.Private] = info;
-        _rewardToken = MyToken(token_);
+        rewardToken = MyToken(token_);
     }
 
     /// @notice Sets initial timestamp(the start date of vesting)
@@ -53,14 +56,15 @@ contract Vesting is IVesting, Ownable {
     /// @param initialTimestamp_ the initial timestamp in unix
     function setInitialTimestamp(uint256 initialTimestamp_)
         external
+        virtual
         override
         onlyOwner
     {
         require(
-            _initialTimestamp == 0,
+            initialTimestamp == 0,
             "The initial timestamp has already been initialized"
         );
-        _initialTimestamp = initialTimestamp_;
+        initialTimestamp = initialTimestamp_;
         emit SetInitialTimestamp(initialTimestamp_);
     }
 
@@ -73,11 +77,11 @@ contract Vesting is IVesting, Ownable {
         address[] calldata _investors,
         uint256[] calldata _amounts,
         AllocationType _allocationType
-    ) external override onlyOwner {
-        require(block.timestamp < _initialTimestamp, "The vesting was started");
+    ) external virtual override onlyOwner {
+        require(block.timestamp < initialTimestamp, "The vesting was start");
         uint256 length = _investors.length;
         require(
-            length != 0 && _investors.length == _amounts.length,
+            length != 0 && length == _amounts.length,
             "Arrays different length"
         );
         uint256 totalAmount = 0;
@@ -85,16 +89,16 @@ contract Vesting is IVesting, Ownable {
             userTokens[_investors[i]][_allocationType] = _amounts[i];
             totalAmount += _amounts[i];
         }
-        _rewardToken.mint(address(this), totalAmount);
+        rewardToken.mint(address(this), totalAmount);
         emit AddInvestors(_investors, _amounts, _allocationType);
     }
 
     /// @notice Transfer accrued reward tokens to investor
     /// @dev Transfer accrued reward tokens to investor
-    function withdrawTokens() external override {
+    function withdrawTokens() external virtual override {
         require(
-            _initialTimestamp != 0,
-            "The initial timestamp wasn't initialize"
+            initialTimestamp != 0 && block.timestamp > initialTimestamp,
+            "The vesting was not start"
         );
         uint256 amountToTransfer;
         if (userTokens[msg.sender][AllocationType.Seed] > 0) {
@@ -105,17 +109,15 @@ contract Vesting is IVesting, Ownable {
             rewardsPaid[msg.sender][AllocationType.Seed] += amountToTransfer;
         }
         if (userTokens[msg.sender][AllocationType.Private] > 0) {
-            uint256 amountByAllocation = _calculateUnlock(
+            uint256 unlockAmount = _calculateUnlock(
                 msg.sender,
                 AllocationType.Private
             );
-            rewardsPaid[msg.sender][
-                AllocationType.Private
-            ] += amountByAllocation;
-            amountToTransfer += amountByAllocation;
+            rewardsPaid[msg.sender][AllocationType.Private] += unlockAmount;
+            amountToTransfer += unlockAmount;
         }
         require(amountToTransfer > 0, "Amount is zero");
-        _rewardToken.transferTokens(msg.sender, amountToTransfer);
+        rewardToken.safeTransfer(msg.sender, amountToTransfer);
         emit Harvest(msg.sender, amountToTransfer);
     }
 
@@ -132,14 +134,14 @@ contract Vesting is IVesting, Ownable {
         uint256 oldRewards = rewardsPaid[_addr][_allocationType];
         VestingInfo memory _vestingInfo = vestingInfo[_allocationType];
 
-        if (block.timestamp > _initialTimestamp + _vestingInfo.cliffDuration) {
+        if (block.timestamp > initialTimestamp + _vestingInfo.cliffDuration) {
             uint256 countPeriod = MAX_INITIAL_PERCENTAGE -
                 _vestingInfo.initialPercentage;
             uint256 initialUnlockAmount = (tokenAmount *
                 _vestingInfo.initialPercentage) / MAX_INITIAL_PERCENTAGE;
             uint256 passedPeriod = Math.min(
                 (block.timestamp -
-                    _initialTimestamp -
+                    initialTimestamp -
                     _vestingInfo.cliffDuration) / _vestingInfo.periodDuration,
                 countPeriod
             );
