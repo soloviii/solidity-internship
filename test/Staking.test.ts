@@ -31,6 +31,7 @@ describe('Staking', async () => {
     let owner: SignerWithAddress
     let investor1: SignerWithAddress
     let investor2: SignerWithAddress
+    let investor3: SignerWithAddress
     let otherAccounts: SignerWithAddress[]
 
     beforeEach(async () => {
@@ -38,6 +39,7 @@ describe('Staking', async () => {
             owner,
             investor1,
             investor2,
+            investor3,
             ...otherAccounts
         ] = await ethers.getSigners()
         const Staking = await ethers.getContractFactory('Staking')
@@ -170,6 +172,75 @@ describe('Staking', async () => {
                 await setCurrentTime(now + 21 + 24 * 3600 * 10);
                 await expect(staking.connect(investor1).unstake()
                 ).to.be.revertedWith("There is no staked tokens")
+            })
+            it('should transfer all staked tokens and rewards to the user account successfully', async () => {
+                let blo = await ethers.provider.getBlockNumber()
+                let now = (await ethers.provider.getBlock(blo)).timestamp
+                await staking.setRewards(now + 10, now + 30, "500000", '10')
+                await setCurrentTime(now + 11)
+                await stakingToken.mint(investor1.address, "3000")
+                await stakingToken.connect(investor1).approve(staking.address, "3000")
+                await stakingToken.mint(investor2.address, "5000")
+                await stakingToken.connect(investor2).approve(staking.address, "5000")
+                await stakingToken.mint(investor3.address, "5000")
+                await stakingToken.connect(investor3).approve(staking.address, "5000")
+                let beforeStakingBalance = await stakingToken.balanceOf(staking.address)
+                await expect(staking.connect(investor1).stake("3000")
+                ).to.emit(staking, 'Stake').withArgs(investor1.address, "3000")
+                let afterStakingBalance = await stakingToken.balanceOf(staking.address)
+                expect(afterStakingBalance).to.be.equal(beforeStakingBalance.add("3000"))
+                await expect(staking.connect(investor2).stake("5000")
+                ).to.emit(staking, 'Stake').withArgs(investor2.address, "5000")
+                await expect(staking.connect(investor3).stake("5000")
+                ).to.emit(staking, 'Stake').withArgs(investor3.address, "5000")
+
+                await setCurrentTime(now + 30 + 24 * 3600 * 20); // after cooldown (staking period)
+                let beforeStakingTokenStaking = await stakingToken.balanceOf(staking.address)
+                let beforeRewardTokenStaking = await rewardToken.balanceOf(staking.address)
+                let beforeStakingTokenInvestor2 = await stakingToken.balanceOf(investor2.address)
+                let beforeRewardTokenInvestor2 = await rewardToken.balanceOf(investor2.address)
+                await expect(staking.connect(investor2).unstake()
+                ).to.emit(staking, 'Unstake').withArgs(investor2.address, "16") //unstake before 60 days (fee - 40%)
+                let afterStakingTokenStaking = await stakingToken.balanceOf(staking.address)
+                let afterRewardTokenStaking = await rewardToken.balanceOf(staking.address)
+                let afterStakingTokenInvestor2 = await stakingToken.balanceOf(investor2.address)
+                let afterRewardTokenInvestor2 = await rewardToken.balanceOf(investor2.address)
+                expect(afterStakingTokenInvestor2).to.be.equal(beforeStakingTokenInvestor2.add("5000"))
+                expect(afterRewardTokenInvestor2).to.be.equal(beforeRewardTokenInvestor2.add("16"))
+                expect(afterStakingTokenStaking).to.be.equal(beforeStakingTokenStaking.sub("5000"))
+                expect(afterRewardTokenStaking).to.be.equal(beforeRewardTokenStaking.sub("16"))
+
+                await setCurrentTime(now + 30 + 24 * 3600 * 183); // after 183 days
+                beforeStakingTokenStaking = await stakingToken.balanceOf(staking.address)
+                beforeRewardTokenStaking = await rewardToken.balanceOf(staking.address)
+                let beforeStakingTokenInvestor1 = await stakingToken.balanceOf(investor1.address)
+                let beforeRewardTokenInvestor1 = await rewardToken.balanceOf(investor1.address)
+                await expect(staking.connect(investor1).unstake()
+                ).to.emit(staking, 'Unstake').withArgs(investor1.address, "150")
+                afterStakingTokenStaking = await stakingToken.balanceOf(staking.address)
+                afterRewardTokenStaking = await rewardToken.balanceOf(staking.address)
+                let afterStakingTokenInvestor1 = await stakingToken.balanceOf(investor1.address)
+                let afterRewardTokenInvestor1 = await rewardToken.balanceOf(investor1.address)
+                expect(afterStakingTokenInvestor1).to.be.equal(beforeStakingTokenInvestor1.add("3000"))
+                expect(afterRewardTokenInvestor1).to.be.equal(beforeRewardTokenInvestor1.add("150"))
+                expect(afterStakingTokenStaking).to.be.equal(beforeStakingTokenStaking.sub("3000"))
+                expect(afterRewardTokenStaking).to.be.equal(beforeRewardTokenStaking.sub("150"))
+
+                await setCurrentTime(now + 30 + 24 * 3600 * 400); // after 400 days
+                beforeStakingTokenStaking = await stakingToken.balanceOf(staking.address)
+                beforeRewardTokenStaking = await rewardToken.balanceOf(staking.address)
+                let beforeStakingTokenInvestor3 = await stakingToken.balanceOf(investor3.address)
+                let beforeRewardTokenInvestor3 = await rewardToken.balanceOf(investor3.address)
+                await expect(staking.connect(investor3).unstake()
+                ).to.emit(staking, 'Unstake').withArgs(investor3.address, "500")
+                afterStakingTokenStaking = await stakingToken.balanceOf(staking.address)
+                afterRewardTokenStaking = await rewardToken.balanceOf(staking.address)
+                let afterStakingTokenInvestor3 = await stakingToken.balanceOf(investor3.address)
+                let afterRewardTokenInvestor3 = await rewardToken.balanceOf(investor3.address)
+                expect(afterStakingTokenInvestor3).to.be.equal(beforeStakingTokenInvestor3.add("5000"))
+                expect(afterRewardTokenInvestor3).to.be.equal(beforeRewardTokenInvestor3.add("500"))
+                expect(afterStakingTokenStaking).to.be.equal(beforeStakingTokenStaking.sub("5000"))
+                expect(afterRewardTokenStaking).to.be.equal(beforeRewardTokenStaking.sub("500"))
             })
         });
     })

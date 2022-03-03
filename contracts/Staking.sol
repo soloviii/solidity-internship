@@ -6,24 +6,59 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IStaking.sol";
 import "./MyToken.sol";
+import "hardhat/console.sol";
 
+/// @title Staking
+/// @author Applicature
+/// @notice This is example of a contract that rewards users for staking their token.
+/// @dev This is example of a contract that rewards users for staking their token.
 contract Staking is IStaking, Ownable {
     using SafeERC20 for IERC20;
 
+    /// @notice the constant that store decimals 18
+    /// @dev the constant that store decimals 18
     uint256 public constant DECIMALS18 = 10**18;
 
+    /// @notice Store the annual percentage yield
+    /// @dev Store the annual percentage yield
     uint256 public apy;
+
+    /// @notice Store the start date of stake
+    /// @dev Store the start date of stake
     uint256 public startDate;
+
+    /// @notice Store the finish date of stake
+    /// @dev Store the finish date of stake
     uint256 public endDate;
+
+    /// @notice Store the total supply of staked tokens
+    /// @dev Store the total supply of staked tokens
     uint256 public totalSupply;
 
+    /// @notice Store the ierc20 staking token
+    /// @dev Store the ierc20 staking token
     IERC20 public stakingToken;
+
+    /// @notice Store the ierc20 reward token
+    /// @dev Store the ierc20 reward token
     IERC20 public rewardToken;
+
+    /// @notice Store the info about staking
+    /// @dev Store the info about staking
     StakingInfo public stakingInfo;
 
+    /// @notice Store the users rewards per year
+    /// @dev Store the users rewards per year
     mapping(address => uint256) public userRewardPerYear;
+
+    /// @notice Store the users staked amount tokens
+    /// @dev Store the users staked amount tokens
     mapping(address => uint256) public staked;
 
+    /// @notice Initialize contract
+    /// @dev Initialize contract, sets reward/staking token addresses & staking info
+    /// @param rewardToken_ the reward token address
+    /// @param stakingToken_ the staking token address
     constructor(address rewardToken_, address stakingToken_) {
         require(
             rewardToken_ != address(0) && stakingToken_ != address(0),
@@ -36,6 +71,10 @@ contract Staking is IStaking, Ownable {
         stakingInfo.stakingPeriod = 60 days;
     }
 
+    /// @notice Calculate accrued reward tokens by staked tokens per year
+    /// @dev Calculate accrued reward tokens by staked tokens per year
+    /// @param amount_ the amount of staked tokens
+    /// @return the accrued reward tokens per year
     function calculateRewardPerYear(uint256 amount_)
         public
         view
@@ -44,6 +83,12 @@ contract Staking is IStaking, Ownable {
         return (amount_ * (100 + apy)) / 100 - amount_;
     }
 
+    /// @notice Add reward to contract for a specific period
+    /// @dev  Add reward to contract for a specific period
+    /// @param _start the start date of stake
+    /// @param _finish the finish date of stake
+    /// @param _rewardsAmount the amount of reward tokens
+    /// @param _apy the annual percentage yield
     function setRewards(
         uint256 _start,
         uint256 _finish,
@@ -67,6 +112,9 @@ contract Staking is IStaking, Ownable {
         emit SetRewards(_start, _finish, _rewardsAmount, _apy);
     }
 
+    /// @notice Transfer the amount of tokens from the user account and register staking for him
+    /// @dev Transfer the amount of tokens from the user account and register staking for him
+    /// @param _amount the amount of staked tokens
     function stake(uint256 _amount) external virtual override {
         require(block.timestamp < endDate, "The staking time is gone");
         require(_amount > 0, "ERROR_AMOUNT_IS_ZERO");
@@ -81,6 +129,8 @@ contract Staking is IStaking, Ownable {
         emit Stake(msg.sender, _amount);
     }
 
+    /// @notice Transfer all staked tokens and rewards to the user account and update staking details for him
+    /// @dev Transfer all staked tokens and rewards to the user account and update staking details for him
     function unstake() external virtual override {
         require(
             block.timestamp > endDate + stakingInfo.cooldown,
@@ -89,8 +139,8 @@ contract Staking is IStaking, Ownable {
         uint256 amountToTransfer = staked[msg.sender];
         require(amountToTransfer != 0, "There is no staked tokens");
         staked[msg.sender] = 0;
+        totalSupply -= amountToTransfer;
         stakingToken.transfer(msg.sender, amountToTransfer);
-
         amountToTransfer =
             (userRewardPerYear[msg.sender] * (block.timestamp - endDate)) /
             365 days;
@@ -99,6 +149,8 @@ contract Staking is IStaking, Ownable {
                 (amountToTransfer * (100 - stakingInfo.feePercentage)) /
                 100;
         }
+        if (block.timestamp > endDate + 365 days)
+            amountToTransfer = userRewardPerYear[msg.sender];
         rewardToken.safeTransfer(msg.sender, amountToTransfer);
         emit Unstake(msg.sender, amountToTransfer);
     }
