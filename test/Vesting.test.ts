@@ -70,6 +70,18 @@ describe('Vesting', async () => {
                 await expect(Vesting.deploy(constants.ZERO_ADDRESS)
                 ).to.be.revertedWith("Incorrect token address")
             })
+            it('should initialize vesting info after deploy correctly', async () => {
+                const Vesting = await ethers.getContractFactory('Vesting')
+                vesting = await Vesting.deploy(rewardToken.address)
+                let vestingInfoSeed = await vesting.vestingInfo(0)
+                expect(vestingInfoSeed.periodDuration).to.be.equal(6 * 60);
+                expect(vestingInfoSeed.cliffDuration).to.be.equal(10 * 60);
+                expect(vestingInfoSeed.initialPercentage).to.be.equal(10);
+                let vestingInfoPrivate = await vesting.vestingInfo(1)
+                expect(vestingInfoPrivate.periodDuration).to.be.equal(6 * 60);
+                expect(vestingInfoPrivate.cliffDuration).to.be.equal(10 * 60);
+                expect(vestingInfoPrivate.initialPercentage).to.be.equal(15);
+            })
         })
         describe('setInitialTimestamp', async () => {
             it('should fail if sender is not owner', async () => {
@@ -249,6 +261,9 @@ describe('Vesting', async () => {
                     .to.emit(vesting, 'Harvest').withArgs(investor1.address, '750000000000000000')
                 expect(await rewardToken.balanceOf(investor1.address)).to.be.equal("2000000000000000000");
                 expect(await rewardToken.balanceOf(vesting.address)).to.be.equal("0");
+
+                await expect(vesting.connect(investor1).withdrawTokens()
+                ).to.be.revertedWith("Amount is zero")
             })
         })
     })
