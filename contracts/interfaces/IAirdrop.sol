@@ -14,6 +14,7 @@ interface IAirdrop {
     function dropTokens(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
+        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,
@@ -24,6 +25,7 @@ interface IAirdrop {
     function dropEther(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
+        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,

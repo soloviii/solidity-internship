@@ -34,7 +34,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
     /// @dev Store computed 256 bit keccak hash
     bytes32 private constant _CONTAINER_TYPEHASE =
         keccak256(
-            "Container(address sender,address[] recipients,uint256[] amounts,uint256 deadline,uint256 nonce)"
+            "Container(address sender,address[] recipients,uint256[] amounts,uint256 deadline,bool isEther,uint256 nonce)"
         );
 
     /// #if_succeeds {:msg "the reward token must be initialized correctly"} rewardToken == IERC20(_token);
@@ -77,6 +77,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
     function dropTokens(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
+        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,
@@ -84,8 +85,18 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
         bytes32 _s
     ) external override onlyOwner {
         require(!_nonces[msg.sender][_nonce], "Nonce used before");
+        require(_isEther == false, "Drop only tokens");
         require(
-            _canDropFunds(_recipients, _amounts, _nonce, _deadline, _v, _r, _s),
+            _canDropFunds(
+                _recipients,
+                _amounts,
+                _isEther,
+                _nonce,
+                _deadline,
+                _v,
+                _r,
+                _s
+            ),
             "Invalid signer"
         );
         uint256 length = _recipients.length;
@@ -94,13 +105,15 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
             "Arrays different length"
         );
         _nonces[msg.sender][_nonce] = true;
+        uint256 sumOfTokens;
         for (uint256 i; i < length; i++) {
-            require(
-                rewardToken.balanceOf(address(this)) >= _amounts[i],
-                "Not enough tokens on the contract"
-            );
+            sumOfTokens += _amounts[i];
             userTokens[_recipients[i]] = _amounts[i];
         }
+        require(
+            rewardToken.balanceOf(address(this)) >= sumOfTokens,
+            "Not enough tokens on the contract"
+        );
     }
 
     /// #if_succeeds {:msg "nonce should be broken"} old(_nonces[msg.sender][_nonce]) == true;
@@ -116,6 +129,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
     function dropEther(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
+        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,
@@ -123,8 +137,18 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
         bytes32 _s
     ) external override onlyOwner {
         require(!_nonces[msg.sender][_nonce], "Nonce used before");
+        require(_isEther == true, "Drop only ethers");
         require(
-            _canDropFunds(_recipients, _amounts, _nonce, _deadline, _v, _r, _s),
+            _canDropFunds(
+                _recipients,
+                _amounts,
+                _isEther,
+                _nonce,
+                _deadline,
+                _v,
+                _r,
+                _s
+            ),
             "Invalid signer"
         );
         uint256 length = _recipients.length;
@@ -133,13 +157,15 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
             "Arrays different length"
         );
         _nonces[msg.sender][_nonce] = true;
+        uint256 sumOfEthers;
         for (uint256 i; i < _recipients.length; i++) {
-            require(
-                address(this).balance >= _amounts[i],
-                "Not enough ethers on the contract"
-            );
+            sumOfEthers += _amounts[i];
             userEthers[_recipients[i]] = _amounts[i];
         }
+        require(
+            address(this).balance >= sumOfEthers,
+            "Not enough ethers on the contract"
+        );
     }
 
     /// #if_succeeds {:msg "the reward token must be initialized correctly"} rewardToken == IERC20(_token);
@@ -213,6 +239,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
     function _canDropFunds(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
+        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,
@@ -227,6 +254,7 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
                 keccak256(abi.encodePacked(_recipients)),
                 keccak256(abi.encodePacked(_amounts)),
                 _deadline,
+                _isEther,
                 _nonce
             )
         );
