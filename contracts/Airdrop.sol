@@ -77,7 +77,6 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
     function dropTokens(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
-        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,
@@ -85,12 +84,11 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
         bytes32 _s
     ) external override onlyOwner {
         require(!_nonces[msg.sender][_nonce], "Nonce used before");
-        require(_isEther == false, "Drop only tokens");
         require(
             _canDropFunds(
                 _recipients,
                 _amounts,
-                _isEther,
+                false,
                 _nonce,
                 _deadline,
                 _v,
@@ -129,7 +127,6 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
     function dropEther(
         address[] calldata _recipients,
         uint256[] calldata _amounts,
-        bool _isEther,
         uint256 _nonce,
         uint256 _deadline,
         uint8 _v,
@@ -137,12 +134,11 @@ contract Airdrop is IAirdrop, Ownable, EIP712 {
         bytes32 _s
     ) external override onlyOwner {
         require(!_nonces[msg.sender][_nonce], "Nonce used before");
-        require(_isEther == true, "Drop only ethers");
         require(
             _canDropFunds(
                 _recipients,
                 _amounts,
-                _isEther,
+                true,
                 _nonce,
                 _deadline,
                 _v,

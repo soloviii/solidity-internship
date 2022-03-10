@@ -167,37 +167,37 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
             it('Should fail if sender is not owner', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1'), ether('2')], deadline, false, '1');
-                await expectRevert(airdrop.dropTokens([user1], [ether('1')], false, '1', deadline, sign.v, sign.r, sign.s, { from: user1 }), "Ownable: caller is not the owner");
+                await expectRevert(airdrop.dropTokens([user1], [ether('1')], '1', deadline, sign.v, sign.r, sign.s, { from: user1 }), "Ownable: caller is not the owner");
             });
             it('Should fail if owner has not signed the message', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(user1, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, false, '1');
-                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], false, '1', deadline, sign.v, sign.r, sign.s), "Invalid signer");
+                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], '1', deadline, sign.v, sign.r, sign.s), "Invalid signer");
             });
             it('Should fail if arrays has different length', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString()], deadline, false, '1');
-                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString()], false, '1', deadline, sign.v, sign.r, sign.s), "Arrays different length");
+                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString()], '1', deadline, sign.v, sign.r, sign.s), "Arrays different length");
             });
             it('Should fail if deadline has passed', async() => {
                 let deadline = 100;
                 let sign = await createSign(user1, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, false, '1');
-                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], false, '1', deadline, sign.v, sign.r, sign.s), "ERROR_TIME_OUT");
+                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], '1', deadline, sign.v, sign.r, sign.s), "ERROR_TIME_OUT");
             });
             it('Should fail if nonce used before', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, false, '1');
                 await myToken.approve(airdrop.address, ether('6'));
                 await airdrop.depositTokens(ether('6'));
-                await airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], false, '1', deadline, sign.v, sign.r, sign.s);
-                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], false, '1', deadline, sign.v, sign.r, sign.s), "Nonce used before");
+                await airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], '1', deadline, sign.v, sign.r, sign.s);
+                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], '1', deadline, sign.v, sign.r, sign.s), "Nonce used before");
             });
             it('Should fail if whether argument(isEther) equal true', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, true, '1');
                 await myToken.approve(airdrop.address, ether('6'));
                 await airdrop.depositTokens(ether('6'));
-                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], true, '1', deadline, sign.v, sign.r, sign.s), "Drop only tokens");
+                await expectRevert(airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], '1', deadline, sign.v, sign.r, sign.s), "Invalid signer");
             });
             it('Should drop tokens successfully', async() => {
                 let deadline = now + 100;
@@ -210,7 +210,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
                 );
                 let beforeBalanceUser1 = await airdrop.userTokens(user1);
                 let beforeBalanceUser2 = await airdrop.userTokens(user2);
-                await airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], false, '1', deadline, sign.v, sign.r, sign.s);
+                await airdrop.dropTokens([user1, user2], [ether('1').toString(), ether('2').toString()], '1', deadline, sign.v, sign.r, sign.s);
                 let afterBalanceUser1 = await airdrop.userTokens(user1);
                 let afterBalanceUser2 = await airdrop.userTokens(user2);
                 expect(afterBalanceUser1).to.be.bignumber.equal(beforeBalanceUser1.add(ether('1')));
@@ -221,35 +221,35 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
             it('Should fail if sender is not owner', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1], [ether('1').toString()], deadline, true, '1');
-                await expectRevert(airdrop.dropEther([user1], [ether('1')], true, '1', deadline, sign.v, sign.r, sign.s, { from: user1 }), "Ownable: caller is not the owner");
+                await expectRevert(airdrop.dropEther([user1], [ether('1')], '1', deadline, sign.v, sign.r, sign.s, { from: user1 }), "Ownable: caller is not the owner");
             });
             it('Should fail if owner has not signed the message', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(user1, [user1], [ether('1').toString()], deadline, true, '1');
-                await expectRevert(airdrop.dropEther([user1], [ether('1')], true, '1', deadline, sign.v, sign.r, sign.s), "Invalid signer");
+                await expectRevert(airdrop.dropEther([user1], [ether('1')], '1', deadline, sign.v, sign.r, sign.s), "Invalid signer");
             });
             it('Should fail if arrays has different length', async() => {
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString()], deadline, true, '1');
-                await expectRevert(airdrop.dropEther([user1, user2], [ether('1')], true, '1', deadline, sign.v, sign.r, sign.s), "Arrays different length");
+                await expectRevert(airdrop.dropEther([user1, user2], [ether('1')], '1', deadline, sign.v, sign.r, sign.s), "Arrays different length");
             });
             it('Should fail if deadline has passed', async() => {
                 let deadline = 100;
                 let sign = await createSign(owner, [user1], [ether('1').toString()], deadline, true, '1');
-                await expectRevert(airdrop.dropEther([user1], [ether('1')], true, '1', deadline, sign.v, sign.r, sign.s), "ERROR_TIME_OUT");
+                await expectRevert(airdrop.dropEther([user1], [ether('1')], '1', deadline, sign.v, sign.r, sign.s), "ERROR_TIME_OUT");
             });
             it('Should fail if nonce used before', async() => {
                 await airdrop.depositEther({ from: owner, value: ether('3') });
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, true, '1');
-                await airdrop.dropEther([user1, user2], [ether('1'), ether('2')], true, '1', deadline, sign.v, sign.r, sign.s);
-                await expectRevert(airdrop.dropEther([user1, user2], [ether('1'), ether('2')], true, '1', deadline, sign.v, sign.r, sign.s), "Nonce used before");
+                await airdrop.dropEther([user1, user2], [ether('1'), ether('2')], '1', deadline, sign.v, sign.r, sign.s);
+                await expectRevert(airdrop.dropEther([user1, user2], [ether('1'), ether('2')], '1', deadline, sign.v, sign.r, sign.s), "Nonce used before");
             });
             it('Should fail if whether argument(isEther) equal false', async() => {
                 await airdrop.depositEther({ from: owner, value: ether('3') });
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, false, '1');
-                await expectRevert(airdrop.dropEther([user1, user2], [ether('1'), ether('2')], false, '1', deadline, sign.v, sign.r, sign.s), "Drop only ethers");
+                await expectRevert(airdrop.dropEther([user1, user2], [ether('1'), ether('2')], '1', deadline, sign.v, sign.r, sign.s), "Invalid signer");
             });
             it('Should drop tokens successfully', async() => {
                 let tx = await airdrop.depositEther({ from: owner, value: ether('3') });
@@ -261,7 +261,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString(), ether('2').toString()], deadline, true, '1');
                 let beforeBalanceUser1 = await airdrop.userEthers(user1);
                 let beforeBalanceUser2 = await airdrop.userEthers(user2);
-                await airdrop.dropEther([user1, user2], [ether('1'), ether('2')], true, '1', deadline, sign.v, sign.r, sign.s);
+                await airdrop.dropEther([user1, user2], [ether('1'), ether('2')], '1', deadline, sign.v, sign.r, sign.s);
                 let afterBalanceUser1 = await airdrop.userEthers(user1);
                 let afterBalanceUser2 = await airdrop.userEthers(user2);
                 expect(afterBalanceUser1).to.be.bignumber.equal(beforeBalanceUser1.add(ether('1')));
@@ -278,7 +278,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
 
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1').toString(), ether('1').toString()], deadline, false, '1');
-                await airdrop.dropTokens([user1, user2], [ether('1'), ether('1')], false, '1', deadline, sign.v, sign.r, sign.s);
+                await airdrop.dropTokens([user1, user2], [ether('1'), ether('1')], '1', deadline, sign.v, sign.r, sign.s);
                 await airdrop.withdrawTokens();
                 await expectRevert(airdrop.claimToken({ from: user1 }), "Not enough tokens on the contract");
             });
@@ -288,7 +288,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
 
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('1.5').toString(), ether('0.5').toString()], deadline, false, '1');
-                await airdrop.dropTokens([user1, user2], [ether('1.5'), ether('0.5')], false, '1', deadline, sign.v, sign.r, sign.s);
+                await airdrop.dropTokens([user1, user2], [ether('1.5'), ether('0.5')], '1', deadline, sign.v, sign.r, sign.s);
 
                 let beforeBalanceUser1 = await myToken.balanceOf(user1);
                 let tx = await airdrop.claimToken({ from: user1 });
@@ -309,7 +309,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
 
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('0.1').toString(), ether('0.4').toString()], deadline, true, '1');
-                await airdrop.dropEther([user1, user2], [ether('0.1'), ether('0.4')], true, '1', deadline, sign.v, sign.r, sign.s);
+                await airdrop.dropEther([user1, user2], [ether('0.1'), ether('0.4')], '1', deadline, sign.v, sign.r, sign.s);
                 await airdrop.withdrawEther();
                 await expectRevert(airdrop.claimEther({ from: user1 }), "Not enough ethers on the contract");
             });
@@ -317,7 +317,7 @@ contract("Airdrop", ([owner, user1, user2, user3]) => {
                 await airdrop.depositEther({ from: owner, value: ether('2') });
                 let deadline = now + 100;
                 let sign = await createSign(owner, [user1, user2], [ether('0.1').toString(), ether('0.4').toString()], deadline, true, '1');
-                await airdrop.dropEther([user1, user2], [ether('0.1'), ether('0.4')], true, '1', deadline, sign.v, sign.r, sign.s);
+                await airdrop.dropEther([user1, user2], [ether('0.1'), ether('0.4')], '1', deadline, sign.v, sign.r, sign.s);
 
                 let beforeBalanceUser1 = await balance.current(user1);
                 let transaction = await airdrop.claimEther({ from: user1 });
