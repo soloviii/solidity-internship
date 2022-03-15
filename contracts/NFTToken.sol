@@ -49,8 +49,6 @@ contract NFTToken is INFTToken, ERC721, Ownable {
         require(_supply > 0, "ERROR_AMOUNT_IS_ZERO");
         baseTokenURI = _tokenURI;
         totalSupply = _supply;
-        _mint(msg.sender, numberMintedCoins);
-        numberMintedCoins++;
     }
 
     /// @notice Gets the all NFTs of user
@@ -86,20 +84,20 @@ contract NFTToken is INFTToken, ERC721, Ownable {
 
     /// @notice Purchases the NFTs
     /// @dev Purchases the NFTs by user
-    /// @param _numbers the number of NFTs
-    function buy(uint256 _numbers) external payable virtual override {
-        require(_numbers != 0, "ERROR_NUMBER_IS_ZERO");
-        uint256 numberNFTs = _numbers + numberMintedCoins;
+    /// @param _amount the number of NFTs
+    function buy(uint256 _amount) external payable virtual override {
+        require(_amount != 0, "ERROR_NUMBER_IS_ZERO");
+        uint256 numberNFTs = _amount + numberMintedCoins;
         require(numberNFTs < totalSupply, "ERROR_NFTs_PURCHASED");
         require(
-            msg.value == pricePerNft * _numbers,
+            msg.value == pricePerNft * _amount,
             "Not enough ether to purchase NFTs"
         );
         for (uint256 i = numberMintedCoins; i < numberNFTs; i++) {
             _mint(msg.sender, i);
             numberMintedCoins++;
         }
-        emit Purchase(msg.sender, _numbers);
+        emit Purchase(msg.sender, _amount);
     }
 
     /// @notice Hook that is called before any token transfer. This includes minting and burning
