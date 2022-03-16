@@ -90,11 +90,11 @@ contract Staking is IStaking, Ownable {
             _start < _finish && block.timestamp < _start,
             "Incorrect dates"
         );
+        require(_apy != 0 && _apy <= 10, "Incorrect apy");
         require(
-            _rewardsAmount != 0 && _rewardsAmount <= 500_000 * DECIMALS18,
+            _rewardsAmount != 0 && _rewardsAmount / _apy == 50000 * DECIMALS18,
             "Incorrect amount of tokens"
         );
-        require(_apy != 0 && _apy <= 10, "Incorrect apy");
 
         rewardToken.safeTransferFrom(msg.sender, address(this), _rewardsAmount);
         startDate = _start;
@@ -134,7 +134,7 @@ contract Staking is IStaking, Ownable {
         require(amountToTransfer != 0, "There is no staked tokens");
         rewards[msg.sender] += calculateRewardTokens(
             msg.sender,
-            staked[msg.sender]
+            amountToTransfer
         );
         staked[msg.sender] = 0;
         totalSupply -= amountToTransfer;

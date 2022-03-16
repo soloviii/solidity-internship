@@ -100,16 +100,16 @@ describe('Staking', async () => {
                 ).to.be.revertedWith("Incorrect apy")
             })
             it('should set reward info in Staking SC successfully', async () => {
-                await rewardToken.mint(owner.address, "500000")
-                await rewardToken.approve(staking.address, "500000")
+                await rewardToken.mint(owner.address, toETH("500000"))
+                await rewardToken.approve(staking.address, toETH("500000"))
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
                 let beforeStakingBalance = await rewardToken.balanceOf(staking.address)
-                await expect(staking.setRewards(now + 10, now + 20, "500000", '10')
+                await expect(staking.setRewards(now + 10, now + 20, toETH("500000"), '10')
                 ).to.emit(staking, 'SetRewards').withArgs(now + 10, now + 20,
-                    "500000", '10')
+                    toETH("500000"), '10')
                 let afterStakingBalance = await rewardToken.balanceOf(staking.address)
-                expect(afterStakingBalance).to.be.equal(beforeStakingBalance.add("500000"))
+                expect(afterStakingBalance).to.be.equal(beforeStakingBalance.add(toETH("500000")))
                 expect(await staking.startDate()).to.be.equal(now + 10)
                 expect(await staking.endDate()).to.be.equal(now + 20)
                 expect(await staking.apy()).to.be.equal(10)
@@ -119,14 +119,14 @@ describe('Staking', async () => {
             it('should fail if staked amount is zero', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
-                await staking.setRewards(now + 10, now + 20, "1", '10')
+                await staking.setRewards(now + 10, now + 20, toETH("500000"), '10')
                 await expect(staking.connect(investor1).stake("0")
                 ).to.be.revertedWith("ERROR_AMOUNT_IS_ZERO")
             })
             it('should fail if staked amount is over max', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
-                await staking.setRewards(now + 10, now + 20, "1", '10')
+                await staking.setRewards(now + 10, now + 20, toETH("500000"), '10')
                 await stakingToken.mint(investor1.address, toETH("5000001"))
                 await stakingToken.connect(investor1).approve(staking.address, toETH("5000001"))
                 await expect(staking.connect(investor1).stake(toETH("5000001"))
@@ -135,7 +135,7 @@ describe('Staking', async () => {
             it('should fail if cooldown has not been passed', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
-                await staking.setRewards(now + 10, now + 20, "1", '10')
+                await staking.setRewards(now + 10, now + 20, toETH("500000"), '10')
                 await stakingToken.mint(investor1.address, toETH("5000000"))
                 await stakingToken.connect(investor1).approve(staking.address, toETH("5000000"))
                 await staking.connect(investor1).stake(toETH("2000000"))
@@ -162,7 +162,7 @@ describe('Staking', async () => {
             it('should fail if there is no staked tokens', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
-                await staking.setRewards(now + 10, now + 20, "1", '10')
+                await staking.setRewards(now + 10, now + 20, toETH("500000"), '10')
                 await expect(staking.connect(investor1).unstake()
                 ).to.be.revertedWith("There is no staked tokens")
             })
