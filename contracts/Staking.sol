@@ -148,6 +148,9 @@ contract Staking is IStaking, Ownable {
                 100;
         }
         rewards[msg.sender] = 0;
+        uint256 balanceRewardToken = rewardToken.balanceOf(address(this));
+        if (balanceRewardToken < amountToTransfer)
+            amountToTransfer = balanceRewardToken;
         rewardToken.safeTransfer(msg.sender, amountToTransfer);
         emit Unstake(msg.sender, amountToTransfer);
     }
