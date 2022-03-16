@@ -2,14 +2,17 @@
 pragma solidity 0.8.10;
 
 import "./management/Managed.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-contract MyToken is ERC20, Managed {
-    constructor(
+contract MyToken is ERC20Upgradeable, Managed {
+    function initialize(
         address _management,
         string memory _name,
         string memory _symbol
-    ) ERC20(_name, _symbol) Managed(_management) {}
+    ) external initializer {
+        __Managed_init(_management);
+        __ERC20_init(_name, _symbol);
+    }
 
     function mint(address _account, uint256 _amount)
         external

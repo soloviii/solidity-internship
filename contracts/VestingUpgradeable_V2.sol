@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./interfaces/IVesting.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "./interfaces/IVesting_V2.sol";
 import "./MyToken.sol";
+import "hardhat/console.sol";
 
-/// @title Vesting
+/// @title VestingUpgradeable_V2
 /// @author Applicature
 /// @notice This Smart Contract provides the vesting of tokens that will be unlocking until a certain date
 /// @dev This Smart Contract provides the vesting of tokens that will be unlocking until a certain date
-contract Vesting is IVesting, Ownable {
-    using SafeERC20 for MyToken;
+contract VestingUpgradeable_V2 is IVesting_V2, OwnableUpgradeable {
+    using SafeERC20Upgradeable for MyToken;
     using Math for uint256;
 
     /// @notice Store constant of percentage 100
@@ -23,6 +24,14 @@ contract Vesting is IVesting, Ownable {
     /// @dev Store the initial timestamp in unix
     uint256 public initialTimestamp;
 
+    /// @notice Store the last index of mapping of investors
+    /// @dev Store the last index of mapping of investors
+    uint256 public lastIndexInvestors;
+
+    /// @notice whether the investor was change
+    /// @dev whether the investor was change
+    bool public isInvestorChanged;
+
     /// @notice Store the reward token
     /// @dev Store the reward token
     MyToken public rewardToken;
@@ -30,6 +39,10 @@ contract Vesting is IVesting, Ownable {
     /// @notice Store the info about vesting by each type of allocation
     /// @dev Store the info about vesting by each type of allocation
     mapping(AllocationType => VestingInfo) public vestingInfo;
+
+    /// @notice Store the addresses of investors
+    /// @dev Store the addresses of investors
+    mapping(uint256 => address) public investors;
 
     /// @notice Store amount of tokens given per investors
     /// @dev Store amount of tokens given per investors
@@ -42,13 +55,35 @@ contract Vesting is IVesting, Ownable {
     /// @notice Initialize contract
     /// @dev Initialize contract, sets reward token address & vesting info
     /// @param token_ the reward token address
-    constructor(address token_) {
+    function initialize(address token_) external initializer {
         require(token_ != address(0), "Incorrect token address");
         VestingInfo memory info = VestingInfo(6 minutes, 10 minutes, 10);
         vestingInfo[AllocationType.Seed] = info;
         info.initialPercentage = 15;
         vestingInfo[AllocationType.Private] = info;
         rewardToken = MyToken(token_);
+
+        __Ownable_init();
+    }
+
+    /// @notice Move the amount of uncollected tokens from one investor address to another
+    /// @dev Move the amount of uncollected tokens from one investor address to another by owner
+    function changeInvestor() external virtual override onlyOwner {
+        require(!isInvestorChanged, "The investor has been already changed");
+        require(
+            userTokens[investors[0]][AllocationType.Seed] != 0,
+            "Investor has already taken away reward tokens"
+        );
+        isInvestorChanged = true;
+        userTokens[investors[1]][AllocationType.Seed] += userTokens[
+            investors[0]
+        ][AllocationType.Seed];
+        rewardsPaid[investors[1]][AllocationType.Seed] += rewardsPaid[
+            investors[0]
+        ][AllocationType.Seed];
+        delete userTokens[investors[0]][AllocationType.Seed];
+        delete rewardsPaid[investors[0]][AllocationType.Seed];
+        emit ChangeInvestor(investors[0], investors[1]);
     }
 
     /// @notice Sets initial timestamp(the start date of vesting)
@@ -88,6 +123,8 @@ contract Vesting is IVesting, Ownable {
         for (uint256 i; i < length; i++) {
             userTokens[_investors[i]][_allocationType] = _amounts[i];
             totalAmount += _amounts[i];
+            investors[lastIndexInvestors] = _investors[i];
+            lastIndexInvestors++;
         }
         rewardToken.mint(address(this), totalAmount);
         emit AddInvestors(_investors, _amounts, _allocationType);
@@ -135,8 +172,8 @@ contract Vesting is IVesting, Ownable {
         VestingInfo memory _vestingInfo = vestingInfo[_allocationType];
 
         if (block.timestamp > initialTimestamp + _vestingInfo.cliffDuration) {
-            uint256 countPeriod = MAX_INITIAL_PERCENTAGE -
-                _vestingInfo.initialPercentage;
+            uint256 countPeriod = (MAX_INITIAL_PERCENTAGE -
+                _vestingInfo.initialPercentage) / 2;
             uint256 initialUnlockAmount = (tokenAmount *
                 _vestingInfo.initialPercentage) / MAX_INITIAL_PERCENTAGE;
             uint256 passedPeriod = Math.min(
