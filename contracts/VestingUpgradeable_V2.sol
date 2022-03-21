@@ -43,10 +43,6 @@ contract VestingUpgradeable_V2 is IVesting_V2, OwnableUpgradeable {
     /// @dev whether the investor was change
     bool public isInvestorChanged;
 
-    /// @notice Store the addresses of investors
-    /// @dev Store the addresses of investors
-    mapping(uint256 => address) public investors;
-
     /// @notice Initialize contract
     /// @dev Initialize contract, sets reward token address & vesting info
     /// @param token_ the reward token address
