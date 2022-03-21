@@ -49,8 +49,7 @@ describe('VestingUpgradeable', async () => {
         const MyToken = await ethers.getContractFactory('MyToken')
 
         management = await Management.deploy()
-        rewardToken = await MyToken.deploy()
-        await rewardToken.initialize(management.address, "MyToken", "MK")
+        rewardToken = await MyToken.deploy(management.address, "MyToken", "MK")
         vesting = await VestingUpgradeable.deploy()
         await vesting.initialize(rewardToken.address)
 

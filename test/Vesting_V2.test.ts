@@ -49,8 +49,7 @@ describe('VestingUpgradeable_V2', async () => {
         const MyToken = await ethers.getContractFactory('MyToken')
 
         management = await Management.deploy()
-        rewardToken = await MyToken.deploy()
-        await rewardToken.initialize(management.address, "MyToken", "MK")
+        rewardToken = await MyToken.deploy(management.address, "MyToken", "MK")
         vesting = await VestingUpgradeable_V2.deploy()
         await vesting.initialize(rewardToken.address)
 
@@ -118,37 +117,6 @@ describe('VestingUpgradeable_V2', async () => {
             it('should fail if investor has already taken away reward tokens', async () => {
                 await expect(vesting.changeInvestor()
                 ).to.be.revertedWith("Investor has already taken away reward tokens")
-            })
-            it('should change investor successfully', async () => {
-                let blo = await ethers.provider.getBlockNumber()
-                let now = (await ethers.provider.getBlock(blo)).timestamp
-                await vesting.setInitialTimestamp(now + 10);
-
-                await expect(vesting.addInvestors([a(investor1), a(investor2)],
-                    [toETH("1"), toETH("2")], 0)
-                ).to.emit(vesting, 'AddInvestors').withArgs([investor1.address, investor2.address],
-                    [toETH("1"), toETH("2")], 0)
-
-                await setCurrentTime(now + 1001 + 16200); // after 100% vesting
-
-                let beforeBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
-                let beforeBalanceInvestor2 = await rewardToken.balanceOf(investor2.address);
-
-                await expect(vesting.changeInvestor()
-                ).to.emit(vesting, 'ChangeInvestor').withArgs(investor1.address,
-                    investor2.address);
-                await expect(vesting.changeInvestor()
-                ).to.be.revertedWith("The investor has been already changed")
-
-                await expect(vesting.connect(investor2).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor2.address, '3000000000000000000')
-                await expect(vesting.connect(investor1).withdrawTokens()
-                ).to.be.revertedWith("Amount is zero")
-
-                let afterBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
-                let afterBalanceInvestor2 = await rewardToken.balanceOf(investor2.address);
-                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("0"));
-                expect(afterBalanceInvestor2).to.be.equal(beforeBalanceInvestor2.add("3000000000000000000"));
             })
         })
         describe('addInvestors', async () => {
@@ -253,19 +221,19 @@ describe('VestingUpgradeable_V2', async () => {
                 let beforeBalanceInvestor2 = await rewardToken.balanceOf(investor2.address);
                 await setCurrentTime(now + 1001); // after cliff period
                 await expect(vesting.connect(investor1).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '170238095238095238')
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '169767441860465116')
                 await expect(vesting.connect(investor2).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor2.address, '340476190476190476')
+                    .to.emit(vesting, 'Harvest').withArgs(investor2.address, '339534883720930232')
                 let afterBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
                 let afterBalanceInvestor2 = await rewardToken.balanceOf(investor2.address);
-                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("170238095238095238"));
-                expect(afterBalanceInvestor2).to.be.equal(beforeBalanceInvestor2.add("340476190476190476"));
+                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("169767441860465116"));
+                expect(afterBalanceInvestor2).to.be.equal(beforeBalanceInvestor2.add("339534883720930232"));
 
                 await setCurrentTime(now + 1001 + 17200); // after 100% vesting
                 await expect(vesting.connect(investor1).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '829761904761904762')
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '830232558139534884')
                 await expect(vesting.connect(investor2).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor2.address, '1659523809523809524')
+                    .to.emit(vesting, 'Harvest').withArgs(investor2.address, '1660465116279069768')
                 expect(await rewardToken.balanceOf(investor1.address)).to.be.equal("1000000000000000000");
                 expect(await rewardToken.balanceOf(investor2.address)).to.be.equal("2000000000000000000");
             })
@@ -293,24 +261,24 @@ describe('VestingUpgradeable_V2', async () => {
                 let beforeBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
                 await setCurrentTime(now + 1031); // after cliff period
                 await expect(vesting.connect(investor1).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '290238095238095238')
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '289767441860465116')
                 let afterBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
-                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("290238095238095238"));
+                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("289767441860465116"));
                 expect(await vesting.rewardsPaid(investor1.address, 0)).to.be.equal("120000000000000000");
-                expect(await vesting.rewardsPaid(investor1.address, 1)).to.be.equal("170238095238095238");
+                expect(await vesting.rewardsPaid(investor1.address, 1)).to.be.equal("169767441860465116");
 
                 beforeBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
                 await setCurrentTime(now + (6 * 60 * 50) / 2 + 631); // after 50% periods
                 await expect(vesting.connect(investor1).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '965714285714285714')
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '954418604651162790')
                 afterBalanceInvestor1 = await rewardToken.balanceOf(investor1.address);
-                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("965714285714285714"));
+                expect(afterBalanceInvestor1).to.be.equal(beforeBalanceInvestor1.add("954418604651162790"));
                 expect(await vesting.rewardsPaid(investor1.address, 0)).to.be.equal("600000000000000000");
-                expect(await vesting.rewardsPaid(investor1.address, 1)).to.be.equal("655952380952380952");
+                expect(await vesting.rewardsPaid(investor1.address, 1)).to.be.equal("644186046511627906");
 
                 await setCurrentTime(now + 1031 + 16200); // after 100% vesting
                 await expect(vesting.connect(investor1).withdrawTokens())
-                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '744047619047619048')
+                    .to.emit(vesting, 'Harvest').withArgs(investor1.address, '755813953488372094')
                 expect(await rewardToken.balanceOf(investor1.address)).to.be.equal("2000000000000000000");
                 expect(await rewardToken.balanceOf(vesting.address)).to.be.equal("0");
 

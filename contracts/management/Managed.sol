@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.10;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Management.sol";
 
-contract Managed is OwnableUpgradeable {
+contract Managed is Ownable {
     uint256 public constant CAN_MINT_TOKENS = 0;
     uint256 public constant CAN_BURN_TOKENS = 1;
 
@@ -18,11 +18,7 @@ contract Managed is OwnableUpgradeable {
         _;
     }
 
-    function __Managed_init(address _managementAddress)
-        internal
-        onlyInitializing
-    {
-        __Ownable_init();
+    constructor(address _managementAddress) public {
         management = Management(_managementAddress);
     }
 

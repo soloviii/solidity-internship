@@ -2,8 +2,8 @@
 pragma solidity 0.8.10;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IVesting.sol";
 import "./MyToken.sol";
 
@@ -12,8 +12,8 @@ import "./MyToken.sol";
 /// @notice This Smart Contract provides the vesting of tokens that will be unlocking until a certain date
 /// @dev This Smart Contract provides the vesting of tokens that will be unlocking until a certain date
 contract VestingUpgradeable is IVesting, OwnableUpgradeable {
-    using SafeERC20Upgradeable for MyToken;
-    using Math for uint256;
+    using SafeERC20 for MyToken;
+    using MathUpgradeable for uint256;
 
     /// @notice Store constant of percentage 100
     /// @dev Store constant of percentage 100
@@ -103,24 +103,24 @@ contract VestingUpgradeable is IVesting, OwnableUpgradeable {
             "The vesting was not start"
         );
         uint256 amountToTransfer;
-        if (userTokens[msg.sender][AllocationType.Seed] > 0) {
+        if (userTokens[_msgSender()][AllocationType.Seed] > 0) {
             amountToTransfer += _calculateUnlock(
-                msg.sender,
+                _msgSender(),
                 AllocationType.Seed
             );
-            rewardsPaid[msg.sender][AllocationType.Seed] += amountToTransfer;
+            rewardsPaid[_msgSender()][AllocationType.Seed] += amountToTransfer;
         }
-        if (userTokens[msg.sender][AllocationType.Private] > 0) {
+        if (userTokens[_msgSender()][AllocationType.Private] > 0) {
             uint256 unlockAmount = _calculateUnlock(
-                msg.sender,
+                _msgSender(),
                 AllocationType.Private
             );
-            rewardsPaid[msg.sender][AllocationType.Private] += unlockAmount;
+            rewardsPaid[_msgSender()][AllocationType.Private] += unlockAmount;
             amountToTransfer += unlockAmount;
         }
         require(amountToTransfer > 0, "Amount is zero");
-        rewardToken.safeTransfer(msg.sender, amountToTransfer);
-        emit Harvest(msg.sender, amountToTransfer);
+        rewardToken.safeTransfer(_msgSender(), amountToTransfer);
+        emit Harvest(_msgSender(), amountToTransfer);
     }
 
     /// @notice Compute unlocking amount of reward tokens to recipient
@@ -141,7 +141,7 @@ contract VestingUpgradeable is IVesting, OwnableUpgradeable {
                 _vestingInfo.initialPercentage;
             uint256 initialUnlockAmount = (tokenAmount *
                 _vestingInfo.initialPercentage) / MAX_INITIAL_PERCENTAGE;
-            uint256 passedPeriod = Math.min(
+            uint256 passedPeriod = MathUpgradeable.min(
                 (block.timestamp -
                     initialTimestamp -
                     _vestingInfo.cliffDuration) / _vestingInfo.periodDuration,
