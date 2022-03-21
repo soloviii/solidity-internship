@@ -131,14 +131,18 @@ contract Staking is IStaking, Ownable {
     /// @dev Transfer all staked tokens and rewards to the user account and update staking details for him
     function unstake() external virtual override {
         uint256 amountToTransfer = staked[msg.sender];
-        require(amountToTransfer != 0, "There is no staked tokens");
+        require(
+            amountToTransfer != 0 || rewards[msg.sender] != 0,
+            "There is no staked tokens"
+        );
         rewards[msg.sender] += calculateRewardTokens(
             msg.sender,
             amountToTransfer
         );
         staked[msg.sender] = 0;
         totalSupply -= amountToTransfer;
-        stakingToken.safeTransfer(msg.sender, amountToTransfer);
+        if (amountToTransfer != 0)
+            stakingToken.safeTransfer(msg.sender, amountToTransfer);
         amountToTransfer = rewards[msg.sender];
         if (
             block.timestamp < stakeTime[msg.sender] + stakingInfo.stakingPeriod
@@ -147,10 +151,11 @@ contract Staking is IStaking, Ownable {
                 (amountToTransfer * (100 - stakingInfo.feePercentage)) /
                 100;
         }
-        rewards[msg.sender] = 0;
         uint256 balanceRewardToken = rewardToken.balanceOf(address(this));
-        if (balanceRewardToken < amountToTransfer)
+        if (balanceRewardToken < amountToTransfer) {
             amountToTransfer = balanceRewardToken;
+            rewards[msg.sender] -= amountToTransfer;
+        } else rewards[msg.sender] = 0;
         rewardToken.safeTransfer(msg.sender, amountToTransfer);
         emit Unstake(msg.sender, amountToTransfer);
     }
