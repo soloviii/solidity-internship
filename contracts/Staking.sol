@@ -116,7 +116,7 @@ contract Staking is IStaking, Ownable {
             block.timestamp > stakeTime[msg.sender] + stakingInfo.cooldown,
             "The cooldown has not been passed"
         );
-        rewards[msg.sender] += calculateRewardTokens(
+        rewards[msg.sender] += _calculateRewardTokens(
             msg.sender,
             staked[msg.sender]
         );
@@ -135,7 +135,7 @@ contract Staking is IStaking, Ownable {
             amountToTransfer != 0 || rewards[msg.sender] != 0,
             "There is no staked tokens"
         );
-        rewards[msg.sender] += calculateRewardTokens(
+        rewards[msg.sender] += _calculateRewardTokens(
             msg.sender,
             amountToTransfer
         );
@@ -150,13 +150,8 @@ contract Staking is IStaking, Ownable {
             amountToTransfer =
                 (amountToTransfer * (100 - stakingInfo.feePercentage)) /
                 100;
-            rewards[msg.sender] = amountToTransfer;
         }
-        uint256 balanceRewardToken = rewardToken.balanceOf(address(this));
-        if (balanceRewardToken < amountToTransfer) {
-            amountToTransfer = balanceRewardToken;
-        }
-        rewards[msg.sender] -= amountToTransfer;
+        rewards[msg.sender] = 0;
         rewardToken.safeTransfer(msg.sender, amountToTransfer);
         emit Unstake(msg.sender, amountToTransfer);
     }
@@ -165,7 +160,7 @@ contract Staking is IStaking, Ownable {
     /// @dev Calculate accrued reward tokens by staked tokens
     /// @param amount_ the amount of staked tokens
     /// @return the accrued reward tokens
-    function calculateRewardTokens(address sender_, uint256 amount_)
+    function _calculateRewardTokens(address sender_, uint256 amount_)
         internal
         view
         returns (uint256)

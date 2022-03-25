@@ -166,38 +166,6 @@ describe('Staking', async () => {
                 await expect(staking.connect(investor1).unstake()
                 ).to.be.revertedWith("There is no staked tokens")
             })
-            it('should transfer rest of balance if balance of rewardToken is less the amountToTransfer', async () => {
-                let blo = await ethers.provider.getBlockNumber()
-                let now = (await ethers.provider.getBlock(blo)).timestamp
-                await staking.setRewards(now + 10, now + 120, toETH("500000"), '10')
-
-                await stakingToken.mint(investor1.address, toETH("50000"))
-                await stakingToken.connect(investor1).approve(staking.address, toETH("50000"))
-                let beforeStakingBalance = await stakingToken.balanceOf(staking.address)
-                await expect(staking.connect(investor1).stake(toETH("50000")) // stake tokens before start date
-                ).to.emit(staking, 'Stake').withArgs(investor1.address, toETH("50000"))
-                let afterStakingBalance = await stakingToken.balanceOf(staking.address)
-                expect(afterStakingBalance).to.be.equal(beforeStakingBalance.add(toETH("50000")))
-                expect(await staking.staked(investor1.address)).to.be.equal(toETH("50000"))
-
-                await rewardToken.burn(staking.address, '499999999999999999000000')
-                await setCurrentTime(now + 121);
-
-                let beforeStakingTokenStaking = await stakingToken.balanceOf(staking.address)
-                let beforeRewardTokenStaking = await rewardToken.balanceOf(staking.address)
-                let beforeStakingTokenInvestor1 = await stakingToken.balanceOf(investor1.address)
-                let beforeRewardTokenInvestor1 = await rewardToken.balanceOf(investor1.address)
-                await expect(staking.connect(investor1).unstake()
-                ).to.emit(staking, 'Unstake').withArgs(investor1.address, '1000000')
-                let afterStakingTokenStaking = await stakingToken.balanceOf(staking.address)
-                let afterRewardTokenStaking = await rewardToken.balanceOf(staking.address)
-                let afterStakingTokenInvestor1 = await stakingToken.balanceOf(investor1.address)
-                let afterRewardTokenInvestor1 = await rewardToken.balanceOf(investor1.address)
-                expect(afterStakingTokenInvestor1).to.be.equal(beforeStakingTokenInvestor1.add(toETH("50000")))
-                expect(afterRewardTokenInvestor1).to.be.equal(beforeRewardTokenInvestor1.add("1000000"))
-                expect(afterStakingTokenStaking).to.be.equal(beforeStakingTokenStaking.sub(toETH("50000")))
-                expect(afterRewardTokenStaking).to.be.equal(beforeRewardTokenStaking.sub("1000000"))
-            })
             it('should transfer all staked tokens and rewards to the user account successfully', async () => {
                 let blo = await ethers.provider.getBlockNumber()
                 let now = (await ethers.provider.getBlock(blo)).timestamp
