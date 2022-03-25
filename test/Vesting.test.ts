@@ -3,7 +3,7 @@ import chai from 'chai'
 import { ethers } from 'hardhat'
 import { solidity } from 'ethereum-waffle'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Contract } from 'ethers'
+import { Contract, ContractFactory } from 'ethers'
 const { ether, constants } = require('@openzeppelin/test-helpers')
 
 chai.use(solidity)
@@ -28,11 +28,13 @@ describe('VestingUpgradeable', async () => {
         return ether(num.toString()).toString()
     }
 
+    let TransparentUpgradeableProxy: ContractFactory
     let management: Contract
     let vesting: Contract
     let rewardToken: Contract
 
     let owner: SignerWithAddress
+    let admin: SignerWithAddress
     let investor1: SignerWithAddress
     let investor2: SignerWithAddress
     let otherAccounts: SignerWithAddress[]
@@ -40,6 +42,7 @@ describe('VestingUpgradeable', async () => {
     beforeEach(async () => {
         ;[
             owner,
+            admin,
             investor1,
             investor2,
             ...otherAccounts
@@ -47,10 +50,20 @@ describe('VestingUpgradeable', async () => {
         const Management = await ethers.getContractFactory('Management')
         const VestingUpgradeable = await ethers.getContractFactory('VestingUpgradeable')
         const MyToken = await ethers.getContractFactory('MyToken')
+        TransparentUpgradeableProxy = await ethers.getContractFactory(
+            'TransparentUpgradeableProxy'
+        )
 
         management = await Management.deploy()
         rewardToken = await MyToken.deploy(management.address, "MyToken", "MK")
-        vesting = await VestingUpgradeable.deploy()
+        let vestingImplementation = await VestingUpgradeable.deploy()
+
+        let vestingAddr = await TransparentUpgradeableProxy.connect(admin).deploy(
+            vestingImplementation.address,
+            await a(admin),
+            [],
+        )
+        vesting = VestingUpgradeable.attach(vestingAddr.address);
         await vesting.initialize(rewardToken.address)
 
         await management.setPermission(

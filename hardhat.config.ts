@@ -19,6 +19,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 const INFURA_PROJECT_ID = process.env.INFURA_PROJECT_ID
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
+const SHOWTRACE_API_KEY = process.env.SHOWTRACE_API_KEY
 
 export default {
     solidity: {
@@ -48,11 +49,11 @@ export default {
             accounts: [`0x${PRIVATE_KEY}`],
             network_id: '43113',
             gas: 8000000,
-            gasPrice: 29500000000
+            gasPrice: 27500000000
         },
     },
 
     etherscan: {
-        apiKey: ETHERSCAN_API_KEY,
+        apiKey: SHOWTRACE_API_KEY,
     }
 }

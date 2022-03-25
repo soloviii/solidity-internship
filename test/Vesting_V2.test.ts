@@ -3,7 +3,7 @@ import chai from 'chai'
 import { ethers } from 'hardhat'
 import { solidity } from 'ethereum-waffle'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Contract } from 'ethers'
+import { Contract, ContractFactory } from 'ethers'
 const { ether, constants } = require('@openzeppelin/test-helpers')
 
 chai.use(solidity)
@@ -28,11 +28,13 @@ describe('VestingUpgradeable_V2', async () => {
         return ether(num.toString()).toString()
     }
 
+    let TransparentUpgradeableProxy: ContractFactory
     let management: Contract
     let vesting: Contract
     let rewardToken: Contract
 
     let owner: SignerWithAddress
+    let admin: SignerWithAddress
     let investor1: SignerWithAddress
     let investor2: SignerWithAddress
     let otherAccounts: SignerWithAddress[]
@@ -40,6 +42,7 @@ describe('VestingUpgradeable_V2', async () => {
     beforeEach(async () => {
         ;[
             owner,
+            admin,
             investor1,
             investor2,
             ...otherAccounts
@@ -47,10 +50,19 @@ describe('VestingUpgradeable_V2', async () => {
         const Management = await ethers.getContractFactory('Management')
         const VestingUpgradeable_V2 = await ethers.getContractFactory('VestingUpgradeable_V2')
         const MyToken = await ethers.getContractFactory('MyToken')
+        TransparentUpgradeableProxy = await ethers.getContractFactory(
+            'TransparentUpgradeableProxy'
+        )
 
         management = await Management.deploy()
         rewardToken = await MyToken.deploy(management.address, "MyToken", "MK")
-        vesting = await VestingUpgradeable_V2.deploy()
+        let vestingImplementation = await VestingUpgradeable_V2.deploy()
+        let proxy = await TransparentUpgradeableProxy.connect(admin).deploy(
+            vestingImplementation.address,
+            await a(admin),
+            [],
+        )
+        vesting = VestingUpgradeable_V2.attach(proxy.address);
         await vesting.initialize(rewardToken.address)
 
         await management.setPermission(
@@ -65,6 +77,39 @@ describe('VestingUpgradeable_V2', async () => {
         )
     })
     describe('Functions', async () => {
+        describe('TransparentUpgradeableProxy', async () => {
+            it('should upgrade Vesting SC to new implementation successfully', async () => {
+                const VestingUpgradeable = await ethers.getContractFactory('VestingUpgradeable')
+                const VestingUpgradeable_V2 = await ethers.getContractFactory('VestingUpgradeable_V2')
+
+                let vesting_v1 = await VestingUpgradeable.deploy()
+                let proxy = await TransparentUpgradeableProxy.connect(admin).deploy(
+                    vesting_v1.address,
+                    await a(admin),
+                    [],
+                )
+                vesting = VestingUpgradeable.attach(proxy.address)
+                await vesting.initialize(rewardToken.address)
+                await expect(vesting.setInitialTimestamp('100'),
+                ).to.emit(vesting, 'SetInitialTimestamp').withArgs('100')
+
+                let vesting_v2 = await VestingUpgradeable_V2.deploy()
+                proxy = TransparentUpgradeableProxy.attach(proxy.address)
+                await proxy.connect(admin).upgradeTo(vesting_v2.address)
+                await proxy.connect(admin).changeAdmin(investor1.address)
+                vesting = VestingUpgradeable_V2.attach(proxy.address)
+
+                expect(await vesting.initialTimestamp()).to.be.equal('100')
+                let vestingInfoSeed = await vesting.vestingInfo(0)
+                expect(vestingInfoSeed.periodDuration).to.be.equal(6 * 60)
+                expect(vestingInfoSeed.cliffDuration).to.be.equal(10 * 60)
+                expect(vestingInfoSeed.initialPercentage).to.be.equal(10)
+                let vestingInfoPrivate = await vesting.vestingInfo(1)
+                expect(vestingInfoPrivate.periodDuration).to.be.equal(6 * 60)
+                expect(vestingInfoPrivate.cliffDuration).to.be.equal(10 * 60)
+                expect(vestingInfoPrivate.initialPercentage).to.be.equal(15)
+            })
+        })
         describe('initialize', async () => {
             it('should fail if reward token address is zero', async () => {
                 const VestingUpgradeable_V2 = await ethers.getContractFactory('VestingUpgradeable_V2')
@@ -117,6 +162,31 @@ describe('VestingUpgradeable_V2', async () => {
             it('should fail if investor has already taken away reward tokens', async () => {
                 await expect(vesting.changeInvestor()
                 ).to.be.revertedWith("Investor has already taken away reward tokens")
+            })
+            it('should change investor successfully', async () => {
+                let blo = await ethers.provider.getBlockNumber()
+                let now = (await ethers.provider.getBlock(blo)).timestamp
+                await vesting.setInitialTimestamp(now + 10);
+
+                let from = '0x1F54605C6875bAf793419C41A21e296E8Bb2bBBB'
+                let to = '0x53657544573F6c4de47A9eB31107623FDD6919cF'
+                await expect(vesting.addInvestors([from, to],
+                    [toETH("1"), toETH("2")], 0)
+                ).to.emit(vesting, 'AddInvestors').withArgs([from, to],
+                    [toETH("1"), toETH("2")], 0)
+
+                await setCurrentTime(now + 1001 + 16200); // after 100% vesting
+                expect(await vesting.userTokens(from, 0)).to.be.equal(toETH("1"))
+                expect(await vesting.userTokens(to, 0)).to.be.equal(toETH("2"))
+
+                await expect(vesting.changeInvestor()
+                ).to.emit(vesting, 'ChangeInvestor').withArgs(from,
+                    to);
+                await expect(vesting.changeInvestor()
+                ).to.be.revertedWith("The investor has been already changed")
+
+                expect(await vesting.userTokens(from, 0)).to.be.equal('0')
+                expect(await vesting.userTokens(to, 0)).to.be.equal(toETH("3"))
             })
         })
         describe('addInvestors', async () => {
