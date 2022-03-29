@@ -109,6 +109,52 @@ describe('VestingUpgradeable_V2', async () => {
                 expect(vestingInfoPrivate.cliffDuration).to.be.equal(10 * 60)
                 expect(vestingInfoPrivate.initialPercentage).to.be.equal(15)
             })
+            it('should set some data then upgrade to VestingV2', async () => {
+                const VestingUpgradeable = await ethers.getContractFactory('VestingUpgradeable')
+                const VestingUpgradeable_V2 = await ethers.getContractFactory('VestingUpgradeable_V2')
+
+                let vesting_v1 = await VestingUpgradeable.deploy()
+                let proxy = await TransparentUpgradeableProxy.connect(admin).deploy(
+                    vesting_v1.address,
+                    await a(admin),
+                    [],
+                )
+                vesting = VestingUpgradeable.attach(proxy.address)
+                await management.setPermission(
+                    vesting.address,
+                    CAN_MINT_TOKENS,
+                    true,
+                )
+                await vesting.initialize(rewardToken.address)
+                let blo = await ethers.provider.getBlockNumber()
+                let now = (await ethers.provider.getBlock(blo)).timestamp
+                await vesting.setInitialTimestamp(now + 10);
+
+                let from = '0x1F54605C6875bAf793419C41A21e296E8Bb2bBBB'
+                let to = '0x53657544573F6c4de47A9eB31107623FDD6919cF'
+                await expect(vesting.addInvestors([from, to],
+                    [toETH("1"), toETH("2")], 0)
+                ).to.emit(vesting, 'AddInvestors').withArgs([from, to],
+                    [toETH("1"), toETH("2")], 0)
+
+                await setCurrentTime(now + 1001 + 16200); // after 100% vesting
+                expect(await vesting.userTokens(from, 0)).to.be.equal(toETH("1"))
+                expect(await vesting.userTokens(to, 0)).to.be.equal(toETH("2"))
+
+                let vesting_v2 = await VestingUpgradeable_V2.deploy()
+                proxy = TransparentUpgradeableProxy.attach(proxy.address)
+                await proxy.connect(admin).upgradeTo(vesting_v2.address)
+                vesting = VestingUpgradeable_V2.attach(proxy.address)
+                await expect(vesting.changeInvestor()
+                ).to.emit(vesting, 'ChangeInvestor').withArgs(from,
+                    to);
+                await expect(vesting.changeInvestor()
+                ).to.be.revertedWith("The investor has been already changed")
+                await expect(vesting.setInitialTimestamp('50')
+                ).to.be.revertedWith("The initial timestamp has already been initialized")
+                expect(await vesting.userTokens(from, 0)).to.be.equal('0')
+                expect(await vesting.userTokens(to, 0)).to.be.equal(toETH("3"))
+            })
         })
         describe('initialize', async () => {
             it('should fail if reward token address is zero', async () => {
